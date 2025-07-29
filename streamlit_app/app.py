@@ -6,17 +6,17 @@ st.title("IPL Analytics Dashboard")
 
 @st.cache_data
 def load_data():
-    matches = pd.read_csv(r"../IPL-Analyzer/IPL Dataset/matches.csv")
-    deliveries = pd.read_csv(r"../IPL-Analyzer/IPL Dataset/deliveries.csv")
-    home_away = pd.read_csv(r"../IPL-Analyzer/IPL Dataset/teamwise_home_and_away.csv")
-
+    matches = pd.read_csv("IPL Dataset/matches.csv")
+    deliveries = pd.read_csv("IPL Dataset/deliveries.csv")
+    home_away = pd.read_csv("IPL Dataset/teamwise_home_and_away.csv")
     return matches, deliveries, home_away
+
 
 matches, deliveries, home_away = load_data()
 
 option = st.sidebar.selectbox(
     "Select Analysis",
-    ["Top Run Scorers", "Top Wicket Takers", "Toss vs Match Winner", "Team Wins by Season", "Home vs Away Win %", "Best Finishers (Death Overs)"]
+    ["Top Run Scorers", "Top Wicket Takers", "Toss vs Match Winner", "Home vs Away Win %", "Best Finishers (Death Overs)"]
 )
 
 if option == "Top Run Scorers":
@@ -36,10 +36,7 @@ elif option == "Toss vs Match Winner":
     result = matches["same"].value_counts(normalize=True) * 100
     st.bar_chart(result)
 
-elif option == "Team Wins by Season":
-    season = st.selectbox("Choose Season", sorted(matches["season"].unique(), reverse=True))
-    wins = matches[matches["season"] == season]["winner"].value_counts()
-    st.bar_chart(wins)
+
 
 elif option == "Home vs Away Win %":
     st.header("Home vs Away Performance")
