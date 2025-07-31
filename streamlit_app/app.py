@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="IPL Analytics", layout="centered")
-st.title("IPL Analytics Dashboard")
+st.set_page_config(page_title="IPL Analytics Pro", layout="wide")
+st.title("🏏 IPL Analytics Dashboard")
 
 @st.cache_data
 def load_data():
@@ -11,39 +11,102 @@ def load_data():
     home_away = pd.read_csv("IPL Dataset/teamwise_home_and_away.csv")
     return matches, deliveries, home_away
 
-
 matches, deliveries, home_away = load_data()
 
-option = st.sidebar.selectbox(
-    "Select Analysis",
-    ["Top Run Scorers", "Top Wicket Takers", "Toss vs Match Winner", "Home vs Away Win %", "Best Finishers (Death Overs)"]
+st.sidebar.title("📊 Choose Analysis")
+option = st.sidebar.radio(
+    "Select one:",
+    [
+        "🏠 Overview Dashboard",
+        "👥 Team-wise Stats",
+        "🔥 Best Finishers (Death Overs)",
+        "⚔️ Player Comparison",
+        "🎲 Toss vs Match Winner",
+        "🏟️ Home vs Away Performance"
+    ]
 )
 
-if option == "Top Run Scorers":
-    st.header("Top 10 Run Scorers")
-    top = deliveries.groupby("batsman")["batsman_runs"].sum().sort_values(ascending=False).head(10)
-    st.bar_chart(top)
+# 1. Overview
+if option == "🏠 Overview Dashboard":
+    st.header("Season-wise Overview")
+    season_stats = matches.groupby("Season").agg({
+        "id": "count",
+        "player_of_match": "nunique",
+        "winner": "nunique"
+    }).rename(columns={"id": "Total Matches", "player_of_match": "Unique MOMs", "winner": "Teams with Wins"})
 
-elif option == "Top Wicket Takers":
-    st.header("Top 10 Wicket Takers")
-    wickets = deliveries[deliveries["player_dismissed"].notnull()]
-    top = wickets.groupby("bowler").size().sort_values(ascending=False).head(10)
-    st.bar_chart(top)
+    st.dataframe(season_stats)
 
-elif option == "Toss vs Match Winner":
-    st.header("Toss Winner = Match Winner %")
-    matches["same"] = matches["toss_winner"] == matches["winner"]
-    result = matches["same"].value_counts(normalize=True) * 100
-    st.bar_chart(result)
+    st.subheader("Top 5 Man of the Match Winners")
+    top_mom = matches["player_of_match"].value_counts().head(5)
+    st.table(top_mom)
 
+    st.subheader("Most Matches Played by Teams")
+    match_counts = pd.concat([matches["team1"], matches["team2"]]).value_counts().head(5)
+    st.bar_chart(match_counts)
 
+# 2. Team-wise Stats
+elif option == "👥 Team-wise Stats":
+    st.header("Team Performance Overview")
+    team = st.selectbox("Select a team:", sorted(matches["team1"].unique()))
+    played = matches[(matches["team1"] == team) | (matches["team2"] == team)]
+    wins = matches[matches["winner"] == team]
 
-elif option == "Home vs Away Win %":
-    st.header("Home vs Away Performance")
-    st.dataframe(home_away.sort_values("home_win_percentage", ascending=False))
+    st.markdown(f"**Total Matches Played:** {played.shape[0]}")
+    st.markdown(f"**Total Wins:** {wins.shape[0]}")
 
-elif option == "Best Finishers (Death Overs)":
-    st.header("Finishers in Overs 16-20")
-    df = deliveries[deliveries["over"] >= 16]
-    finishers = df.groupby("batsman")["batsman_runs"].sum().sort_values(ascending=False).head(10)
+    st.subheader("Most Frequent Opponents")
+    opponents = pd.concat([
+        played[played["team1"] == team]["team2"],
+        played[played["team2"] == team]["team1"]
+    ])
+    st.bar_chart(opponents.value_counts().head(5))
+
+# 3. Best Finishers
+elif option == "🔥 Best Finishers (Death Overs)":
+    st.header("Top Batsmen in Overs 16–20")
+    death_overs = deliveries[deliveries["over"] >= 16]
+    finishers = death_overs.groupby("batsman")["batsman_runs"].sum().sort_values(ascending=False).head(10)
     st.bar_chart(finishers)
+
+    st.markdown("These are players who consistently finish strong in the death overs (16–20).")
+
+# 4. Player Comparison Tool
+elif option == "⚔️ Player Comparison":
+    st.header("Compare Two Players – Batting Stats")
+    player1 = st.selectbox("Select Player 1", sorted(deliveries["batsman"].unique()))
+    player2 = st.selectbox("Select Player 2", sorted(deliveries["batsman"].unique()), index=1)
+
+    def get_batting_stats(player):
+        df = deliveries[deliveries["batsman"] == player]
+        total_runs = df["batsman_runs"].sum()
+        balls = df.shape[0]
+        strike_rate = (total_runs / balls) * 100 if balls > 0 else 0
+        return pd.Series([total_runs, balls, round(strike_rate, 2)],
+                         index=["Runs", "Balls", "Strike Rate"])
+
+    stats = pd.DataFrame({
+        player1: get_batting_stats(player1),
+        player2: get_batting_stats(player2)
+    })
+
+    st.table(stats)
+
+# 5. Toss vs Match Winner
+elif option == "🎲 Toss vs Match Winner":
+    st.header("Toss Winner = Match Winner?")
+    matches["same"] = matches["toss_winner"] == matches["winner"]
+    toss_stats = matches["same"].value_counts(normalize=True) * 100
+
+    st.write(f"✅ Toss winners won the match **{round(toss_stats.get(True, 0), 2)}%** of the time.")
+    st.write(f"❌ Toss winners lost the match **{round(toss_stats.get(False, 0), 2)}%** of the time.")
+    st.bar_chart(toss_stats)
+
+# 6. Home vs Away
+elif option == "🏟️ Home vs Away Performance":
+    st.header("Team-wise Home vs Away Win %")
+    home_away_sorted = home_away.sort_values("home_win_percentage", ascending=False)
+    st.dataframe(home_away_sorted)
+
+    st.subheader("Top 5 Home Dominators")
+    st.bar_chart(home_away_sorted.set_index("team")["home_win_percentage"].head(5))
