@@ -6,8 +6,10 @@ st.title("🏏 IPL Analytics Dashboard")
 
 @st.cache_data
 def load_data():
-    matches = pd.read_csv("IPL Dataset/matches.csv")
-    deliveries = pd.read_csv("IPL Dataset/deliveries.csv")
+    matches = pd.read_csv("IPL Dataset/matches_updated_ipl_upto_2026.csv")
+            "IPL Dataset/2008 - 2026  LATEST UPDATED DATA .xlsx",
+        sheet_name="deliveries"
+    )
     home_away = pd.read_csv("IPL Dataset/teamwise_home_and_away.csv")
     return matches, deliveries, home_away
 
